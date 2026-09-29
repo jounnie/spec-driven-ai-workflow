@@ -1,0 +1,73 @@
+{% extends "pulse/base.html" %}
+{% load static %}
+
+{% block title %}{{ project.name }} · {{ block.super }}{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'projects' %}">All projects</a></p>
+<h1>{{ project.name }}</h1>
+{% if has_data %}
+<div class="copy-link">
+  <code class="copy-link__url" id="share-link-{{ project.pk }}">{{ link }}</code>
+  <button class="button button--secondary" type="button" data-copy-target="share-link-{{ project.pk }}">Copy link</button>
+  <span class="copy-link__feedback" aria-live="polite"></span>
+</div>
+
+<section aria-labelledby="trend-heading">
+  <h2 id="trend-heading">Trend by week</h2>
+  <p id="chart-fallback">The chart could not be shown. The table below has the same figures.</p>
+  <div class="chart">
+    <canvas id="trend-chart" role="img" aria-label="Line chart of the weekly averages for each statement. The table below has the same figures."></canvas>
+  </div>
+</section>
+
+<section aria-labelledby="table-heading">
+  <h2 id="table-heading">Weekly figures</h2>
+  <div class="table-scroll" tabindex="0" role="region" aria-labelledby="weeks-caption">
+    <table class="data-table">
+      <caption id="weeks-caption" class="visually-hidden">Weekly results</caption>
+      <thead>
+        <tr>
+          <th scope="col">Week</th>
+          <th scope="col" class="data-table__number">Responses</th>
+          {% for label in labels %}
+          <th scope="col" class="data-table__number">{{ label }}</th>
+          {% endfor %}
+          <th scope="col">Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <th scope="row">{{ row.week.week_key }}</th>
+          <td class="data-table__number">{{ row.week.count }}</td>
+          {% for value in row.averages %}
+          <td class="data-table__number">{{ value }}</td>
+          {% endfor %}
+          <td>{% if row.week.limited %}<span class="anonymity-note"><strong>Limited anonymity:</strong> fewer than {{ threshold }} people have responded for this week, so individual answers may be recognisable.</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{ trend|json_script:"trend-data" }}
+{% else %}
+<div class="empty-state">
+  <p>No responses yet. Share the link with your team.</p>
+  <div class="copy-link">
+    <code class="copy-link__url" id="share-link-{{ project.pk }}">{{ link }}</code>
+    <button class="button button--secondary" type="button" data-copy-target="share-link-{{ project.pk }}">Copy link</button>
+    <span class="copy-link__feedback" aria-live="polite"></span>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'pulse/js/copy-link.js' %}" defer></script>
+{% if has_data %}
+<script src="{% static 'pulse/vendor/chart.umd.js' %}" defer></script>
+<script src="{% static 'pulse/js/trend-chart.js' %}" defer></script>
+{% endif %}
+{% endblock %}

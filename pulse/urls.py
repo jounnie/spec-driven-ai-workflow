@@ -15,6 +15,7 @@ urlpatterns = [
     path('reset/<uidb64>/<token>/', views.PulseResetConfirmView.as_view(), name='password_reset_confirm'),
     path('invite/<str:token>/', views.invite, name='invite'),
     path('projects/', views.projects, name='projects'),
+    path('projects/<int:pk>/', views.project_trend, name='project_trend'),
     path('p/<str:token>/', views.respond, name='respond'),
     path('p/<str:token>/thanks/', views.respond_thanks, name='respond_thanks'),
     path('health/', views.health, name='health'),

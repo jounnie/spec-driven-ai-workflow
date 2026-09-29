@@ -701,6 +701,7 @@ templates use no others.
 | `empty-state` | Empty state |
 | `project-list`, `project-list__item`, `project-list__name`, `project-list__count` | Project list |
 | `copy-link`, `copy-link__url`, `copy-link__feedback` | Copy-link button |
+| `chart` | Box around the trend chart canvas (#14); relative, full width, 20rem (320 px) high, so Chart.js can resize the canvas |
 | `table-scroll`, `data-table`, `data-table__number` | Data table |
 | `confirm`, `confirm__consequence` | Confirmation page |
 | `error-page` | Error page |

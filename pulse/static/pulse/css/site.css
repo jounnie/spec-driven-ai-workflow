@@ -544,3 +544,13 @@ code {
 .error-page {
   margin-top: var(--space-6);
 }
+
+/* Chart wrapper (#14): Chart.js sizes the canvas to this box */
+
+.chart {
+  position: relative;
+  width: 100%;
+  height: 20rem;
+  margin-bottom: var(--space-4);
+  background: var(--color-background);
+}

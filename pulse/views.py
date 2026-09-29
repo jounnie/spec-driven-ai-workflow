@@ -1,5 +1,7 @@
 import re
+import datetime
 from datetime import timedelta
+from decimal import ROUND_HALF_UP, Decimal
 from functools import wraps
 
 from django.conf import settings
@@ -27,6 +29,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.views.decorators.http import require_http_methods, require_POST
 
+from .aggregates import DIMENSIONS, weekly_aggregates
 from .conf import anonymity_limited, current_week_key, rating_scale
 from .forms import RATING_FIELDS, ProjectForm, RegistrationForm, SubmissionForm
 from .models import Invitation, Project, Submission
@@ -381,3 +384,90 @@ def respond(request, token):
 def respond_thanks(request, token):
     project_for_token(token)
     return render(request, 'pulse/respond_thanks.html')
+
+
+MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+
+
+def _parse_week_key(key):
+    year, week = key.split('-W')
+    return int(year), int(week)
+
+
+def _week_key_of(monday):
+    year, week, _ = monday.isocalendar()
+    return f'{year}-W{week:02d}'
+
+
+def _week_range(monday):
+    """Monday to Sunday of a week, like ``28 Sep – 4 Oct 2026``."""
+    sunday = monday + timedelta(days=6)
+    start = f'{monday.day} {MONTHS[monday.month - 1]}'
+    if monday.year != sunday.year:
+        start += f' {monday.year}'
+    return f'{start} – {sunday.day} {MONTHS[sunday.month - 1]} {sunday.year}'
+
+
+def _one_decimal(value):
+    return str(Decimal(str(value)).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
+
+
+def trend_weeks(aggregates, current_key):
+    """Fill the gaps: one entry for every ISO week from the first data week to the
+    current week (or the newest data week, if that is later)."""
+    by_key = {entry['week_key']: entry for entry in aggregates}
+    if not by_key:
+        return []
+    keys = sorted(by_key, key=_parse_week_key)
+    first = datetime.date.fromisocalendar(*_parse_week_key(keys[0]), 1)
+    last = datetime.date.fromisocalendar(*_parse_week_key(max(keys[-1], current_key, key=_parse_week_key)), 1)
+    weeks = []
+    monday = first
+    while monday <= last:
+        key = _week_key_of(monday)
+        entry = by_key.get(key)
+        count = entry['count'] if entry else 0
+        weeks.append(
+            {
+                'week_key': key,
+                'range': _week_range(monday),
+                'count': count,
+                'limited': count > 0 and anonymity_limited(count),
+                **{name: entry[name] if entry else None for name in DIMENSIONS},
+            }
+        )
+        monday += timedelta(days=7)
+    return weeks
+
+
+@require_http_methods(['GET', 'HEAD'])
+@login_required
+def project_trend(request, pk):
+    """Weekly averages of the owner's project as a chart and a table (#14)."""
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    weeks = trend_weeks(weekly_aggregates(project), current_week_key())
+    scale = rating_scale()
+    rows = [
+        {
+            'week': week,
+            'averages': [
+                _one_decimal(week[name]) if week[name] is not None else '–' for name in DIMENSIONS
+            ],
+        }
+        for week in weeks
+    ]
+    context = {
+        'project': project,
+        'link': request.build_absolute_uri(f'/p/{project.share_token}/'),
+        'has_data': any(week['count'] for week in weeks),
+        'rows': rows,
+        'labels': [Submission._meta.get_field(name).verbose_name for name in DIMENSIONS],
+        'threshold': settings.PULSE_ANONYMITY_THRESHOLD,
+        'trend': {
+            'scale_min': scale.start,
+            'scale_max': scale.stop - 1,
+            'threshold': settings.PULSE_ANONYMITY_THRESHOLD,
+            'weeks': weeks,
+        },
+    }
+    return render(request, 'pulse/trend.html', context)
