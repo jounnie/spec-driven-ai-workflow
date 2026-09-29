@@ -102,6 +102,9 @@ DATABASES = {
         'OPTIONS': {
             # Run on every new connection.
             'init_command': 'PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA secure_delete=ON',
+            # Take the write lock when a transaction starts, so a "check, then
+            # insert" sequence cannot race (first-user registration, #6).
+            'transaction_mode': 'IMMEDIATE',
         },
     }
 }
@@ -223,3 +226,7 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
+# Authentication
+LOGIN_REDIRECT_URL = '/projects/'
