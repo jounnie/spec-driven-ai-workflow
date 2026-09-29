@@ -58,6 +58,19 @@ Each instance runs as a single Docker container with an embedded SQLite database
 - Respondents never need an account; they use the project's shared link
 - Team sizes vary widely, so the tool must handle groups from a handful of people up to larger teams
 
+## Tech stack
+
+The app is a server-rendered Django application with HTMX for small interactions, chosen because Django's built-in auth, admin and ORM cover most of v1 without custom security code.
+
+- **Backend:** Python with Django, served by Gunicorn in the single container
+- **Frontend:** Django templates with HTMX for partial updates; no separate frontend build
+- **Charts:** Chart.js for the per-project trend chart, one line per dimension
+- **Database:** SQLite via the Django ORM and migrations, stored on a mounted Docker volume
+- **Auth:** Django's built-in auth for lead accounts, sessions and password hashing (Argon2); invitations and the first-user-becomes-admin rule are built on top of it
+- **Admin:** the Django admin for instance-level management
+- **Duplicate protection:** a signed cookie per project and week; no respondent identifier is stored with ratings
+- **SQLite settings:** WAL journal mode, foreign keys enforced so project deletion cascades, and `secure_delete` (or `VACUUM` after deletion) so purged data does not linger in the database file
+
 ## Known limitations & risks
 
 The design trades strong guarantees for simplicity, and these trade-offs were accepted knowingly.
@@ -71,9 +84,10 @@ The design trades strong guarantees for simplicity, and these trade-offs were ac
 
 ## Open questions
 
-Four details still need a decision before implementation starts.
+Five details still need a decision before implementation starts.
 
 - [ ] Rating scale: 1 to 5, or something else?
 - [ ] Minimum number of responses below which the anonymity warning appears
 - [ ] Definition of a "week": calendar week, or rolling seven days from the link being shared?
 - [ ] Can lead accounts be deleted, and what happens to their projects?
+- [ ] Password reset without email: admin-initiated reset only, or optional SMTP configuration?
