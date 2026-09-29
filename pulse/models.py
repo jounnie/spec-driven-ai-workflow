@@ -2,11 +2,13 @@ import math
 import numbers
 import re
 import secrets
+from datetime import timedelta
 
 from django.conf import settings
 from django.core import exceptions
 from django.core.validators import RegexValidator
 from django.db import models
+from django.utils import timezone
 
 from pulse import conf
 
@@ -119,3 +121,56 @@ class Submission(models.Model):
 
     def __str__(self):
         return f'Submission for {self.project_id} in {self.week_key}'
+
+
+INVITATION_LIFETIME = timedelta(days=7)
+
+
+class InvitationQuerySet(models.QuerySet):
+    def open(self, now=None):
+        """Invitations that are neither used, revoked nor expired at ``now``."""
+        now = now or timezone.now()
+        return self.filter(used_at__isnull=True, revoked_at__isnull=True, expires_at__gt=now)
+
+
+class Invitation(models.Model):
+    """A single-use link that lets one person create a lead account (#8)."""
+
+    token = models.CharField(
+        max_length=64,
+        unique=True,
+        editable=False,
+        default=generate_share_token,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    objects = InvitationQuerySet.as_manager()
+
+    def save(self, *args, **kwargs):
+        if self.expires_at is None:
+            self.expires_at = self.created_at + INVITATION_LIFETIME
+        super().save(*args, **kwargs)
+
+    def is_open(self, now=None):
+        """Valid strictly before ``expires_at``, invalid at exactly that time."""
+        now = now or timezone.now()
+        return self.used_at is None and self.revoked_at is None and now < self.expires_at
+
+    def __str__(self):
+        return f'Invitation {self.pk}'
