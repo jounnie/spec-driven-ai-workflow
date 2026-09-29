@@ -1,0 +1,21 @@
+{% extends "pulse/base.html" %}
+
+{% block title %}Log in · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Log in</h1>
+<form method="post" action="{% url 'login' %}">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="form-errors" role="alert">
+    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+  </div>
+  {% endif %}
+  {% include "pulse/_field.html" with field=form.username type="text" autocomplete="username" keep_value=True %}
+  {% include "pulse/_field.html" with field=form.password type="password" autocomplete="current-password" %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="form-actions">
+    <button class="button button--primary" type="submit">Log in</button>
+  </div>
+</form>
+{% endblock %}

@@ -126,7 +126,7 @@ def test_too_short_password_shows_minimum_length_message(client):
     response = post(client, password='xq7!Lm')
 
     assert not User.objects.exists()
-    assert 'at least 8 characters' in response.content.decode()
+    assert 'at least 12 characters' in response.content.decode()
 
 
 @pytest.mark.django_db

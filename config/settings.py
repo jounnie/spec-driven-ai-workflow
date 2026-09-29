@@ -110,6 +110,15 @@ DATABASES = {
 }
 
 
+# Password hashing: Argon2 for new passwords; PBKDF2 stays so old hashes still
+# verify and are upgraded to Argon2 at the next login.
+
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
+
+
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 
@@ -119,6 +128,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 12},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -229,4 +239,6 @@ MAILERS = {
 
 
 # Authentication
+LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/projects/'
+LOGOUT_REDIRECT_URL = '/login/'

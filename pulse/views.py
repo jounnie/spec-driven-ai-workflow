@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import get_user_model, login
+from django.contrib.auth.views import LoginView, LogoutView
 from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
@@ -43,3 +45,24 @@ def register(request):
     else:
         form = RegistrationForm()
     return render(request, 'pulse/register.html', {'form': form})
+
+
+class PulseLoginView(LoginView):
+    """Login page; while no account exists it sends visitors to registration."""
+
+    redirect_authenticated_user = True
+
+    def dispatch(self, request, *args, **kwargs):
+        if not get_user_model().objects.exists():
+            return redirect('register')
+        return super().dispatch(request, *args, **kwargs)
+
+
+class PulseLogoutView(LogoutView):
+    """Logout by POST only; confirms with an info message on the login page."""
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        # The session was flushed by logout, so the message goes into the new one.
+        messages.info(request, 'You have been logged out.')
+        return response

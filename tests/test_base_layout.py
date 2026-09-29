@@ -195,7 +195,7 @@ def test_base_template_renders_for_logged_in_user(client, db):
     assert response.status_code == 404
     html = response.content.decode()
     assert 'site-header__brand' in html
-    assert 'anna' not in html
+    assert '<li class="site-nav__user">anna</li>' in html
 
 
 # Stylesheet

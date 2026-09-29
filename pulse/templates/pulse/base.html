@@ -14,7 +14,17 @@
     <div class="container site-header__inner">
       <a class="site-header__brand" href="/">Pulse Check</a>
       <nav class="site-nav" aria-label="Main">
-        <ul class="site-nav__list"></ul>
+        <ul class="site-nav__list">
+          {% if user.is_authenticated %}
+          <li class="site-nav__user">{{ user.get_username }}</li>
+          <li>
+            <form class="inline-form" method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button class="button button--secondary" type="submit">Log out</button>
+            </form>
+          </li>
+          {% endif %}
+        </ul>
       </nav>
     </div>
   </header>
