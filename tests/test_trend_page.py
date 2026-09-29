@@ -4,6 +4,7 @@ from datetime import datetime, timezone as dt_timezone
 from html.parser import HTMLParser
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -412,3 +413,11 @@ def test_view_uses_weekly_aggregates_only(client, project, anna, monkeypatch):
     data = payload(page(client, project, anna))
 
     assert data['weeks'][0]['workload'] == 1.5
+
+
+def test_table_cells_do_not_break_words():
+    css = (settings.BASE_DIR / 'pulse/static/pulse/css/site.css').read_text()
+    rule = re.search(r'\.data-table th,\s*\.data-table td\s*\{([^}]*)\}', css).group(1)
+
+    assert 'overflow-wrap: normal' in rule
+    assert 'word-break: normal' in rule

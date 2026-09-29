@@ -176,7 +176,8 @@ These rules apply to every page.
 - **320 px wide without horizontal scrolling.** Nothing has a fixed width
   larger than the viewport; long words and URLs wrap
   (`overflow-wrap: anywhere` on `body`, inherited by every text element,
-  so a 100-character project name without spaces wraps too). The only thing allowed
+  so a 100-character project name without spaces wraps too; data table cells
+  are the exception, see [Data table](#data-table)). The only thing allowed
   to scroll sideways is a data table, inside its own `.table-scroll`
   container.
 - **Visible keyboard focus on every interactive element** (links, buttons,
@@ -580,6 +581,12 @@ scroll it.
 Numbers are right-aligned (`.data-table__number`) with tabular figures. The
 header row has the surface background.
 
+Cells never break mid-word: `.data-table th, .data-table td` reset
+`overflow-wrap: normal; word-break: normal` (overriding the `body` rule), and
+column headers (`thead th`) and any cell with `.data-table__nowrap` (e.g.
+the week label in the #14 table) do not wrap at all (`white-space: nowrap`). A table that becomes wider than the screen
+scrolls inside `.table-scroll`, never the page.
+
 ### Confirmation page for destructive actions
 
 Use before an action that cannot be undone or breaks existing links:
@@ -702,7 +709,7 @@ templates use no others.
 | `project-list`, `project-list__item`, `project-list__name`, `project-list__count` | Project list |
 | `copy-link`, `copy-link__url`, `copy-link__feedback` | Copy-link button |
 | `chart` | Box around the trend chart canvas (#14); relative, full width, 20rem (320 px) high, so Chart.js can resize the canvas |
-| `table-scroll`, `data-table`, `data-table__number` | Data table |
+| `table-scroll`, `data-table`, `data-table__number`, `data-table__nowrap` | Data table |
 | `confirm`, `confirm__consequence` | Confirmation page |
 | `error-page` | Error page |
 | `visually-hidden` | Text for screen readers only (e.g. a table caption) |

@@ -39,7 +39,7 @@
       <tbody>
         {% for row in rows %}
         <tr>
-          <th scope="row">{{ row.week.week_key }}</th>
+          <th scope="row" class="data-table__nowrap">{{ row.week.week_key }}</th>
           <td class="data-table__number">{{ row.week.count }}</td>
           {% for value in row.averages %}
           <td class="data-table__number">{{ value }}</td>

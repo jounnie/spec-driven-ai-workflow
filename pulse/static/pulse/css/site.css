@@ -512,10 +512,17 @@ code {
   border: 1px solid var(--color-border);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .data-table thead th {
   background: var(--color-surface);
+}
+
+.data-table thead th,
+.data-table__nowrap {
+  white-space: nowrap;
 }
 
 .data-table__number {
