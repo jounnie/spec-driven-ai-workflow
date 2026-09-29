@@ -1,0 +1,40 @@
+{% extends "pulse/base.html" %}
+{% load static %}
+
+{% block title %}Projects · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Projects</h1>
+{% if items %}
+<ul class="project-list">
+  {% for item in items %}
+  <li class="project-list__item">
+    <h2 class="project-list__name"><a href="/projects/{{ item.project.pk }}/">{{ item.project.name }}</a></h2>
+    <p class="project-list__count">{% if item.count == 0 %}No responses yet this week{% elif item.count == 1 %}1 response this week{% else %}{{ item.count }} responses this week{% endif %}</p>
+    <div class="copy-link">
+      <code class="copy-link__url" id="share-link-{{ item.project.pk }}">{{ item.link }}</code>
+      <button class="button button--secondary" type="button" data-copy-target="share-link-{{ item.project.pk }}">Copy link</button>
+      <span class="copy-link__feedback" aria-live="polite"></span>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty-state">
+  <p>You have no projects yet.</p>
+</div>
+{% endif %}
+
+<h2>Create a project</h2>
+<form method="post" action="{% url 'projects' %}">
+  {% csrf_token %}
+  {% include "pulse/_field.html" with field=form.name type="text" autocomplete="off" keep_value=True %}
+  <div class="form-actions">
+    <button class="button button--primary" type="submit">Create project</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'pulse/js/copy-link.js' %}" defer></script>
+{% endblock %}

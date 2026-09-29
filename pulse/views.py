@@ -3,6 +3,7 @@ from functools import wraps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.views import (
     INTERNAL_RESET_SESSION_TOKEN,
@@ -13,6 +14,7 @@ from django.contrib.auth.views import (
 )
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
@@ -21,8 +23,9 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .forms import RegistrationForm
-from .models import Invitation
+from .conf import current_week_key
+from .forms import ProjectForm, RegistrationForm
+from .models import Invitation, Project
 
 
 def health(request):
@@ -240,3 +243,36 @@ class PulseResetConfirmView(PasswordResetConfirmView):
         del self.request.session[INTERNAL_RESET_SESSION_TOKEN]
         messages.success(self.request, 'Your password has been changed. Log in with your new password.')
         return redirect(self.get_success_url())
+
+
+@require_http_methods(['GET', 'HEAD', 'POST'])
+@login_required
+def projects(request):
+    """The lead's own projects with share links and this week's counts; create form."""
+    if request.method == 'POST':
+        form = ProjectForm(request.POST)
+        if form.is_valid():
+            project = form.save(commit=False)
+            project.owner = request.user
+            project.save()
+            messages.success(request, f'Project {project.name} created.')
+            return redirect('projects')
+    else:
+        form = ProjectForm()
+
+    week = current_week_key()
+    # One query: the count is annotated, only for the current week key.
+    own_projects = (
+        Project.objects.filter(owner=request.user)
+        .annotate(week_count=Count('submissions', filter=Q(submissions__week_key=week)))
+        .order_by('-created_at', '-pk')
+    )
+    items = [
+        {
+            'project': project,
+            'link': request.build_absolute_uri(f'/p/{project.share_token}/'),
+            'count': project.week_count,
+        }
+        for project in own_projects
+    ]
+    return render(request, 'pulse/projects.html', {'items': items, 'form': form})
