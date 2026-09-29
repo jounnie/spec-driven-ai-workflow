@@ -131,12 +131,27 @@ def removes_last_superuser(users):
     return not get_user_model().objects.filter(is_superuser=True, is_active=True).exclude(pk__in=pks).exists()
 
 
+ADMIN_RIGHTS_MESSAGE = 'The last active superuser cannot have admin rights removed.'
+
+
+def loses_last_admin_rights(user, cleaned):
+    """True if the edit takes is_staff or is_superuser from the last active staff superuser."""
+    was_admin = user.is_active and user.is_staff and user.is_superuser
+    keeps_rights = cleaned.get('is_staff', user.is_staff) and cleaned.get('is_superuser', user.is_superuser)
+    if not was_admin or keeps_rights:
+        return False
+    others = get_user_model().objects.filter(is_active=True, is_staff=True, is_superuser=True)
+    return not others.exclude(pk=user.pk).exists()
+
+
 class LeadChangeForm(UserChangeForm):
     def clean(self):
         cleaned = super().clean()
         if self.instance.pk and 'is_active' in self.changed_data and not cleaned.get('is_active', True):
             if removes_last_superuser([self.instance]):
                 raise forms.ValidationError(LAST_SUPERUSER_MESSAGE)
+        if self.instance.pk and loses_last_admin_rights(self.instance, cleaned):
+            raise forms.ValidationError(ADMIN_RIGHTS_MESSAGE)
         return cleaned
 
 
