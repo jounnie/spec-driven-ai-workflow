@@ -35,6 +35,7 @@
         pointBackgroundColor: weeks.map(function (week) { return week.limited ? background : item.color; }),
         pointHoverBackgroundColor: weeks.map(function (week) { return week.limited ? background : item.color; }),
         pointBorderWidth: 2,
+        clip: false,
         spanGaps: false
       };
     });
@@ -55,6 +56,22 @@
       return weeks[items[0].dataIndex];
     }
 
+    // Like Chart.js "index" mode, but also finds weeks whose value is null (gaps).
+    window.Chart.Interaction.modes.weekIndex = function (chart, event) {
+      var index = Math.round(chart.scales.x.getValueForPixel(event.x));
+      if (event.x < chart.chartArea.left || event.x > chart.chartArea.right || index < 0 || index >= weeks.length) {
+        return [];
+      }
+      var items = [];
+      chart.data.datasets.forEach(function (dataset, datasetIndex) {
+        var element = chart.getDatasetMeta(datasetIndex).data[index];
+        if (element) {
+          items.push({ element: element, datasetIndex: datasetIndex, index: index });
+        }
+      });
+      return items;
+    };
+
     new window.Chart(canvas, {
       type: 'line',
       data: { labels: weeks.map(function (week) { return week.week_key; }), datasets: datasets },
@@ -62,8 +79,9 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: { top: 8, right: 8 } },
         animation: false,
-        interaction: { mode: 'index', intersect: false },
+        interaction: { mode: 'weekIndex', intersect: false },
         scales: {
           y: {
             min: data.scale_min,
