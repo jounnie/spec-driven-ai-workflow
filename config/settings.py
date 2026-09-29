@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import zoneinfo
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -129,7 +130,23 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+
+def time_zone():
+    """Return the instance time zone name, from PULSE_TIME_ZONE (default UTC)."""
+    value = os.environ.get('PULSE_TIME_ZONE')
+    if value is None:
+        return 'UTC'
+    name = value.strip()
+    if not name:
+        raise ImproperlyConfigured('PULSE_TIME_ZONE is set but empty; set it to a time zone name such as Europe/Zurich or unset it.')
+    try:
+        zoneinfo.ZoneInfo(name)
+    except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+        raise ImproperlyConfigured(f'PULSE_TIME_ZONE is not a known time zone name: {value!r}.') from None
+    return name
+
+
+TIME_ZONE = time_zone()
 
 USE_I18N = True
 
@@ -140,6 +157,51 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+# Pulse
+# Read these through pulse.conf or django.conf.settings, never os.environ.
+
+def _int_from_env(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return int(value.strip())
+    except ValueError:
+        raise ImproperlyConfigured(f'{name} must be an integer, got {value!r}.') from None
+
+
+def scale_bounds():
+    """Return (min, max) of the rating scale, from PULSE_SCALE_MIN/PULSE_SCALE_MAX (default 1 to 5)."""
+    minimum = _int_from_env('PULSE_SCALE_MIN', 1)
+    maximum = _int_from_env('PULSE_SCALE_MAX', 5)
+    if minimum < 0:
+        raise ImproperlyConfigured(f'PULSE_SCALE_MIN must not be negative, got {minimum}.')
+    if minimum >= maximum:
+        raise ImproperlyConfigured(
+            f'PULSE_SCALE_MIN ({minimum}) must be less than PULSE_SCALE_MAX ({maximum}).'
+        )
+    # At most 11 values, so the rating form stays quick to fill in.
+    if maximum - minimum + 1 > 11:
+        raise ImproperlyConfigured(
+            f'PULSE_SCALE_MIN ({minimum}) to PULSE_SCALE_MAX ({maximum}) gives {maximum - minimum + 1} values; '
+            'at most 11 are allowed.'
+        )
+    return minimum, maximum
+
+
+def anonymity_threshold():
+    """Return the response count below which anonymity is limited, from PULSE_ANONYMITY_THRESHOLD (default 5)."""
+    threshold = _int_from_env('PULSE_ANONYMITY_THRESHOLD', 5)
+    if threshold < 1:
+        raise ImproperlyConfigured(f'PULSE_ANONYMITY_THRESHOLD must be at least 1, got {threshold}.')
+    return threshold
+
+
+PULSE_SCALE_MIN, PULSE_SCALE_MAX = scale_bounds()
+
+PULSE_ANONYMITY_THRESHOLD = anonymity_threshold()
 
 
 # Email
