@@ -10,7 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -73,10 +76,31 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+def database_path():
+    """Return the SQLite file path, from PULSE_DB_PATH or the project root."""
+    value = os.environ.get('PULSE_DB_PATH')
+    if value is None:
+        return BASE_DIR / 'db.sqlite3'
+    if not value.strip():
+        raise ImproperlyConfigured('PULSE_DB_PATH is set but empty; set it to an absolute file path or unset it.')
+    path = Path(value)
+    if not path.is_absolute():
+        raise ImproperlyConfigured(f'PULSE_DB_PATH must be an absolute path, got {value!r}.')
+    if path.is_dir():
+        raise ImproperlyConfigured(f'PULSE_DB_PATH points at a directory, not a file: {path}')
+    if not path.parent.is_dir():
+        raise ImproperlyConfigured(f'The directory for PULSE_DB_PATH does not exist: {path}')
+    return path
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': database_path(),
+        'OPTIONS': {
+            # Run on every new connection.
+            'init_command': 'PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA secure_delete=ON',
+        },
     }
 }
 

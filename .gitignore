@@ -5,3 +5,5 @@ __pycache__/
 db.sqlite3
 .idea/
 .claude/settings.local.json
+db.sqlite3-wal
+db.sqlite3-shm
