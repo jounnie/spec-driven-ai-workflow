@@ -1,0 +1,22 @@
+{% extends "pulse/base.html" %}
+
+{% block title %}Register · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Register</h1>
+<p>This account will be the administrator of this instance.</p>
+<form method="post" action="{% url 'register' %}">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="form-errors" role="alert">
+    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+  </div>
+  {% endif %}
+  {% include "pulse/_field.html" with field=form.username type="text" autocomplete="username" keep_value=True %}
+  {% include "pulse/_field.html" with field=form.password1 type="password" autocomplete="new-password" %}
+  {% include "pulse/_field.html" with field=form.password2 type="password" autocomplete="new-password" %}
+  <div class="form-actions">
+    <button class="button button--primary" type="submit">Register</button>
+  </div>
+</form>
+{% endblock %}

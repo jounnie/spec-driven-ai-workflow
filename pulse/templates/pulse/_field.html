@@ -1,0 +1,7 @@
+{% comment %}Design-system form field. Context: field (a BoundField), type, autocomplete, keep_value.{% endcomment %}
+<div class="field{% if field.errors %} field--invalid{% endif %}">
+  <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  <input class="field__input" type="{{ type }}" id="{{ field.id_for_label }}" name="{{ field.html_name }}"{% if keep_value and field.value %} value="{{ field.value }}"{% endif %} autocomplete="{{ autocomplete }}" required{% if field.errors %} aria-invalid="true"{% endif %}{% if field.help_text or field.errors %} aria-describedby="{% if field.help_text %}{{ field.id_for_label }}_help{% endif %}{% if field.help_text and field.errors %} {% endif %}{% if field.errors %}{{ field.id_for_label }}_error{% endif %}"{% endif %}>
+  {% if field.help_text %}<p class="field__help" id="{{ field.id_for_label }}_help">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<p class="field__error" id="{{ field.id_for_label }}_error">{{ field.errors|join:" " }}</p>{% endif %}
+</div>
