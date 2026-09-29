@@ -90,4 +90,4 @@ Five details needed a decision before implementation; three are settled.
 - [x] Minimum number of responses below which the anonymity warning appears **Decided (#3):** the warning appears below 5 responses; hosts can change it with `PULSE_ANONYMITY_THRESHOLD`
 - [x] Definition of a "week": calendar week, or rolling seven days from the link being shared? **Decided (#3):** an ISO calendar week (Monday 00:00 to Sunday), in the instance time zone set by `PULSE_TIME_ZONE` (default UTC). Rolling seven days was rejected because each project would get different week boundaries
 - [ ] Can lead accounts be deleted, and what happens to their projects?
-- [ ] Password reset without email: admin-initiated reset only, or optional SMTP configuration?
+- [x] Password reset without email: admin-initiated reset only, or optional SMTP configuration? **Decided (#9):** admin-initiated only in v1 (the admin creates a one-time link, valid 3 days); optional reset by email when SMTP is configured is left to #26

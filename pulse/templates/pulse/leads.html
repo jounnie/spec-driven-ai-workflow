@@ -1,0 +1,36 @@
+{% extends "pulse/base.html" %}
+
+{% block title %}Leads · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Leads</h1>
+<p>If a lead forgot their password, create a reset link and hand it over. The link can be used once and expires in 3 days.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-labelledby="leads-caption">
+  <table class="data-table">
+    <caption id="leads-caption" class="visually-hidden">Leads</caption>
+    <thead>
+      <tr>
+        <th scope="col">Username</th>
+        <th scope="col">Last login</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lead in leads %}
+      <tr>
+        <th scope="row">{{ lead.get_username }}</th>
+        <td>{% if lead.last_login %}{{ lead.last_login|date:"Y-m-d H:i" }}{% else %}Never{% endif %}</td>
+        <td>
+          {% if lead.pk != user.pk %}
+          <form class="inline-form" method="post" action="{% url 'reset_link_create' lead.pk %}">
+            {% csrf_token %}
+            <button class="button button--secondary" type="submit">Create reset link</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

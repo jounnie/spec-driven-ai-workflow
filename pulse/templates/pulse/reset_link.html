@@ -1,0 +1,20 @@
+{% extends "pulse/base.html" %}
+{% load static %}
+
+{% block title %}Reset link · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Reset link for {{ lead.get_username }}</h1>
+<p>Hand this link to {{ lead.get_username }}. This link can be used once and expires in 3 days.</p>
+<div class="copy-link">
+  <code class="copy-link__url" id="reset-link">{{ link }}</code>
+  <button class="button button--secondary" type="button" data-copy-target="reset-link">Copy link</button>
+  <span class="copy-link__feedback" aria-live="polite"></span>
+</div>
+<p>The link is not stored and cannot be shown again. Create a new one if you need it again.</p>
+<p><a href="{% url 'leads' %}">Back to leads</a></p>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'pulse/js/copy-link.js' %}" defer></script>
+{% endblock %}

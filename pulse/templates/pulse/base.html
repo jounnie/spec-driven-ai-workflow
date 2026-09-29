@@ -17,6 +17,7 @@
         <ul class="site-nav__list">
           {% if user.is_superuser %}
           <li><a href="{% url 'invitations' %}"{% if request.path == '/invitations/' %} aria-current="page"{% endif %}>Invitations</a></li>
+          <li><a href="{% url 'leads' %}"{% if request.path == '/leads/' %} aria-current="page"{% endif %}>Leads</a></li>
           {% endif %}
           {% if user.is_authenticated %}
           <li class="site-nav__user">{{ user.get_username }}</li>

@@ -3,13 +3,22 @@ from functools import wraps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
-from django.contrib.auth.views import LoginView, LogoutView, redirect_to_login
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.views import (
+    INTERNAL_RESET_SESSION_TOKEN,
+    LoginView,
+    LogoutView,
+    PasswordResetConfirmView,
+    redirect_to_login,
+)
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import Http404, HttpResponse
-from django.shortcuts import redirect, render
-from django.urls import reverse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from django.views.decorators.http import require_http_methods, require_POST
 
 from .forms import RegistrationForm
@@ -159,3 +168,75 @@ def invite(request, token):
     else:
         form = RegistrationForm()
     return render(request, 'pulse/invite.html', {'form': form})
+
+
+@require_http_methods(['GET', 'HEAD'])
+@superuser_required
+def leads(request):
+    users = get_user_model().objects.filter(is_active=True).order_by('username', 'pk')
+    return render(request, 'pulse/leads.html', {'leads': users})
+
+
+@require_POST
+@superuser_required
+def reset_link_create(request, pk):
+    user = get_object_or_404(get_user_model(), pk=pk, is_active=True)
+    if user.pk == request.user.pk:
+        messages.error(request, 'You cannot create a reset link for your own account.')
+        return redirect('leads')
+    # The token is not stored; it is shown once, on this response.
+    link = request.build_absolute_uri(
+        reverse(
+            'password_reset_confirm',
+            args=[urlsafe_base64_encode(force_bytes(user.pk)), default_token_generator.make_token(user)],
+        )
+    )
+    return render(request, 'pulse/reset_link.html', {'lead': user, 'link': link})
+
+
+def reset_invalid(request):
+    """The one page for every kind of unusable reset link; it never says which."""
+    return render(request, 'pulse/reset_invalid.html', status=404)
+
+
+class PulseResetConfirmView(PasswordResetConfirmView):
+    """Set a new password with an admin-created link (#9).
+
+    Django's view accepts inactive users and answers 200 for bad links; this
+    one rejects inactive users, answers 404 and repeats the token check inside
+    a write-locked transaction.
+    """
+
+    template_name = 'pulse/password_reset_confirm.html'
+    success_url = reverse_lazy('login')
+
+    def get_user(self, uidb64):
+        user = super().get_user(uidb64)
+        return user if user is not None and user.is_active else None
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Django's help text is a <ul>, which does not fit the field component.
+        form.fields['new_password1'].help_text = ''
+        form.fields['new_password2'].help_text = ''
+        return form
+
+    def render_to_response(self, context, **response_kwargs):
+        if not self.validlink:
+            return reset_invalid(self.request)
+        return super().render_to_response(context, **response_kwargs)
+
+    def form_valid(self, form):
+        session_token = self.request.session.get(INTERNAL_RESET_SESSION_TOKEN)
+        # SQLite transaction_mode IMMEDIATE takes the write lock here, so the
+        # user is read fresh and only one of two simultaneous requests wins.
+        with transaction.atomic():
+            user = self.get_user(self.kwargs['uidb64'])
+            if user is None or not self.token_generator.check_token(user, session_token):
+                self.validlink = False
+                return reset_invalid(self.request)
+            user.set_password(form.cleaned_data['new_password1'])
+            user.save(update_fields=['password'])
+        del self.request.session[INTERNAL_RESET_SESSION_TOKEN]
+        messages.success(self.request, 'Your password has been changed. Log in with your new password.')
+        return redirect(self.get_success_url())

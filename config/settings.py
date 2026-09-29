@@ -119,6 +119,10 @@ PASSWORD_HASHERS = [
 ]
 
 
+# Admin-created reset links (#9) are valid for 3 days.
+PASSWORD_RESET_TIMEOUT = 3 * 24 * 60 * 60
+
+
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 
