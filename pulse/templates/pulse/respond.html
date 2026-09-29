@@ -1,0 +1,42 @@
+{% extends "pulse/base.html" %}
+
+{% block title %}{{ project.name }} · {{ block.super }}{% endblock %}
+{% block htmx_meta %}{% endblock %}
+{% block htmx_script %}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block body_attrs %}{% endblock %}
+
+{% block content %}
+<h1>{{ project.name }}</h1>
+<p>Rate the four statements for this week. It takes under a minute.</p>
+<p>Your answers are anonymous. Only your four ratings and the week are stored – no name, email address or IP address. A cookie in your browser prevents submitting twice in the same week.</p>
+<form method="post" action="{% url 'respond' project.share_token %}">
+  {% csrf_token %}
+  {% for row in rows %}
+  <fieldset class="rating{% if row.error %} rating--invalid{% endif %}" aria-describedby="{% if row.error %}{{ row.name }}_error {% endif %}{{ row.name }}_ends">
+    <legend class="rating__legend">{{ row.label }}</legend>
+    {% if row.error %}<p class="field__error" id="{{ row.name }}_error">Choose a rating.</p>{% endif %}
+    <p class="rating__ends" id="{{ row.name }}_ends">
+      <span>{{ row.ends.0 }}</span>
+      <span>{{ row.ends.1 }}</span>
+    </p>
+    <div class="rating__options">
+      {% for option in row.options %}
+      <label class="rating__option"><input type="radio" name="{{ row.name }}" value="{{ option.value }}" required{% if option.checked %} checked{% endif %}> {{ option.value }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+  {% if limited %}
+  <div class="anonymity-warning">
+    <p>
+      <strong class="anonymity-warning__prefix">Limited anonymity:</strong>
+      fewer than {{ threshold }} people have responded for this week, so individual answers may be recognisable.
+    </p>
+  </div>
+  {% endif %}
+  <div class="form-actions">
+    <button class="button button--primary" type="submit">Submit</button>
+  </div>
+</form>
+{% endblock %}

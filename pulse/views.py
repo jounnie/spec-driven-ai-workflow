@@ -1,3 +1,4 @@
+import re
 from functools import wraps
 
 from django.conf import settings
@@ -23,9 +24,9 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .conf import current_week_key
-from .forms import ProjectForm, RegistrationForm
-from .models import Invitation, Project
+from .conf import anonymity_limited, current_week_key, rating_scale
+from .forms import RATING_FIELDS, ProjectForm, RegistrationForm, SubmissionForm
+from .models import Invitation, Project, Submission
 
 
 def health(request):
@@ -276,3 +277,63 @@ def projects(request):
         for project in own_projects
     ]
     return render(request, 'pulse/projects.html', {'items': items, 'form': form})
+
+
+SHARE_TOKEN = re.compile(r'[A-Za-z0-9_-]{1,64}', re.ASCII)
+
+
+def project_for_token(token):
+    """Return the project of a share token, or raise Http404 for anything else."""
+    if not SHARE_TOKEN.fullmatch(token):
+        raise Http404
+    return get_object_or_404(Project, share_token=token)
+
+
+def _rating_rows(form):
+    scale = rating_scale()
+    ends = [f'{scale.start} = Strongly disagree', f'{scale.stop - 1} = Strongly agree']
+    rows = []
+    for name in RATING_FIELDS:
+        field = Submission._meta.get_field(name)
+        selected = ''
+        if form.data is not None and name not in form.errors:
+            selected = str(form.data.get(name, '')).strip()
+        rows.append(
+            {
+                'name': name,
+                'label': field.verbose_name,
+                'error': name in form.errors,
+                'ends': ends,
+                'options': [{'value': v, 'checked': str(v) == selected} for v in scale],
+            }
+        )
+    return rows
+
+
+@require_http_methods(['GET', 'HEAD', 'POST'])
+def respond(request, token):
+    """The public rating form behind the share link; no account, session or cookie of ours."""
+    project = project_for_token(token)
+    week = current_week_key()
+    if request.method == 'POST':
+        form = SubmissionForm(project, week, request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('respond_thanks', token=token)
+    else:
+        form = SubmissionForm(project, week)
+
+    limited = anonymity_limited(Submission.objects.filter(project=project, week_key=week).count())
+    context = {
+        'project': project,
+        'rows': _rating_rows(form),
+        'limited': limited,
+        'threshold': settings.PULSE_ANONYMITY_THRESHOLD,
+    }
+    return render(request, 'pulse/respond.html', context)
+
+
+@require_http_methods(['GET', 'HEAD'])
+def respond_thanks(request, token):
+    project_for_token(token)
+    return render(request, 'pulse/respond_thanks.html')
