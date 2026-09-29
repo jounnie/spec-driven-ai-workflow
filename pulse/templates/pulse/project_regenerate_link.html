@@ -1,0 +1,15 @@
+{% extends "pulse/base.html" %}
+
+{% block title %}Regenerate share link · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Regenerate share link</h1>
+<form class="confirm" method="post" action="{% url 'project_regenerate_link' project.pk %}">
+  {% csrf_token %}
+  <p class="confirm__consequence">The current link will stop working immediately. Everyone on your team will need the new link. People who already responded this week may be able to respond again.</p>
+  <div class="form-actions">
+    <button class="button button--danger" type="submit">Regenerate share link</button>
+    <a href="{% url 'project_trend' project.pk %}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

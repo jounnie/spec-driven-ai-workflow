@@ -7,7 +7,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core import exceptions
 from django.core.validators import RegexValidator
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from pulse import conf
@@ -98,6 +98,15 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+    def regenerate_share_token(self):
+        """Replace the share token with a new, unused one; the old link stops working."""
+        with transaction.atomic():
+            token = generate_share_token()
+            while Project.objects.filter(share_token=token).exists():
+                token = generate_share_token()
+            self.share_token = token
+            self.save(update_fields=['share_token'])
 
 
 class Submission(models.Model):

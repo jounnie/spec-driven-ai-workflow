@@ -63,7 +63,10 @@
 </div>
 {% endif %}
 
-<p><a class="button button--danger" href="{% url 'project_delete' project.pk %}">Delete project</a></p>
+<p>
+  <a class="button button--danger" href="{% url 'project_regenerate_link' project.pk %}">Create new share link</a>
+  <a class="button button--danger" href="{% url 'project_delete' project.pk %}">Delete project</a>
+</p>
 {% endblock %}
 
 {% block scripts %}

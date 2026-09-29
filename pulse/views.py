@@ -539,3 +539,22 @@ def project_delete(request, pk):
         'response_count': project.submissions.count(),
     }
     return render(request, 'pulse/project_delete.html', context)
+
+
+@require_http_methods(['GET', 'HEAD', 'POST'])
+@login_required
+def project_regenerate_link(request, pk):
+    """Confirmation page, then replace the owner's share token (#22)."""
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    if request.method == 'POST':
+        # Write-locked transaction (transaction_mode IMMEDIATE): read the project
+        # fresh, so a deletion or a submission in flight cannot interleave.
+        try:
+            with transaction.atomic():
+                project = Project.objects.get(pk=pk, owner=request.user)
+                project.regenerate_share_token()
+        except Project.DoesNotExist:
+            raise Http404
+        messages.success(request, 'New share link created.')
+        return redirect('project_trend', pk=pk)
+    return render(request, 'pulse/project_regenerate_link.html', {'project': project})
