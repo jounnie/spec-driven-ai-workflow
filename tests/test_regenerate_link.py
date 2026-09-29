@@ -1,10 +1,12 @@
 import threading
 
 import pytest
+from django.db import connection
 from django.test import Client
 
 from pulse.models import Project, Submission
 
+from .test_invitations import file_database  # noqa: F401 - fixture
 from .test_trend_page import PASSWORD, User, submit
 
 FIELDS = ('workload', 'clarity', 'collaboration', 'progress')
@@ -209,26 +211,38 @@ def test_regenerate_saves_only_the_token(project):
     assert Project.objects.get(pk=project.pk).name == 'Apollo'
 
 
-@pytest.mark.django_db(transaction=True)
-def test_submission_and_regeneration_at_the_same_time_both_succeed(anna):
+def test_submission_and_regeneration_at_the_same_time_both_succeed(file_database):  # noqa: F811
+    anna = User.objects.create_user('anna', password=PASSWORD)
     project = Project.objects.create(name='Apollo', owner=anna)
     old_url = f'/p/{project.share_token}/'
     results = {}
+    errors = []
 
     def submit_form():
-        results['submit'] = Client().post(old_url, valid()).status_code
+        try:
+            results['submit'] = Client().post(old_url, valid()).status_code
+        except Exception as exc:  # noqa: BLE001 - reported below
+            errors.append(exc)
+        finally:
+            connection.close()
 
     def regenerate():
-        client = Client()
-        client.force_login(anna)
-        results['regenerate'] = client.post(url(project)).status_code
+        try:
+            client = Client()
+            client.force_login(anna)
+            results['regenerate'] = client.post(url(project)).status_code
+        except Exception as exc:  # noqa: BLE001 - reported below
+            errors.append(exc)
+        finally:
+            connection.close()
 
     threads = [threading.Thread(target=submit_form), threading.Thread(target=regenerate)]
     for thread in threads:
         thread.start()
     for thread in threads:
-        thread.join()
+        thread.join(timeout=30)
 
+    assert not errors
     assert results['regenerate'] == 302
     assert results['submit'] in (302, 404)
     assert Submission.objects.filter(project=project).count() == (1 if results['submit'] == 302 else 0)
