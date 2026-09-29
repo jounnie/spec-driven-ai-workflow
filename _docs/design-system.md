@@ -175,7 +175,8 @@ These rules apply to every page.
 
 - **320 px wide without horizontal scrolling.** Nothing has a fixed width
   larger than the viewport; long words and URLs wrap
-  (`overflow-wrap: anywhere` on `.copy-link__url`). The only thing allowed
+  (`overflow-wrap: anywhere` on `body`, inherited by every text element,
+  so a 100-character project name without spaces wraps too). The only thing allowed
   to scroll sideways is a data table, inside its own `.table-scroll`
   container.
 - **Visible keyboard focus on every interactive element** (links, buttons,

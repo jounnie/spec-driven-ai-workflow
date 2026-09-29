@@ -374,3 +374,21 @@ def test_form_contains_csrf_token(client, anna):
     client.force_login(anna)
 
     assert 'name="csrfmiddlewaretoken"' in client.get('/projects/').content.decode()
+
+
+def test_site_css_wraps_long_unbroken_text_so_project_names_do_not_scroll_sideways():
+    from pathlib import Path
+    css = (Path(__file__).resolve().parent.parent / 'pulse' / 'static' / 'pulse' / 'css' / 'site.css').read_text()
+    body = re.search(r'\nbody\s*\{([^}]*)\}', css).group(1)
+
+    assert 'overflow-wrap: anywhere' in body
+
+
+def test_long_unbroken_project_name_is_rendered_in_the_wrapping_list(client, anna):
+    Project.objects.create(owner=anna, name='y' * 100)
+    client.force_login(anna)
+
+    html = client.get('/projects/').content.decode()
+
+    assert 'class="project-list__name"' in html
+    assert 'y' * 100 in html
