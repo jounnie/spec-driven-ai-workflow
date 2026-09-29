@@ -1,4 +1,5 @@
 import re
+from datetime import timedelta
 from functools import wraps
 
 from django.conf import settings
@@ -14,12 +15,14 @@ from django.contrib.auth.views import (
     redirect_to_login,
 )
 from django.core.exceptions import PermissionDenied
+from django.core.signing import BadSignature
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.dateformat import format as format_date
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.views.decorators.http import require_http_methods, require_POST
@@ -310,16 +313,57 @@ def _rating_rows(form):
     return rows
 
 
+SUBMITTED_COOKIE = 'pulse_submitted'
+SUBMITTED_COOKIE_MAX_AGE = 8 * 24 * 60 * 60
+
+
+def _submitted_salt(token):
+    return f'pulse.submitted.{token}'
+
+
+def _already_submitted(request, token, week):
+    """True when the signed cookie of this project holds the current week key."""
+    try:
+        value = request.get_signed_cookie(SUBMITTED_COOKIE, default=None, salt=_submitted_salt(token))
+    except BadSignature:
+        return False
+    return value == week
+
+
+def _next_monday_text():
+    """Start of the next ISO week in the instance time zone, like ``5 October 2026``."""
+    today = timezone.localtime(timezone.now(), timezone.get_default_timezone()).date()
+    return format_date(today + timedelta(days=7 - today.weekday()), 'j F Y')
+
+
 @require_http_methods(['GET', 'HEAD', 'POST'])
 def respond(request, token):
-    """The public rating form behind the share link; no account, session or cookie of ours."""
+    """The public rating form behind the share link; no account or session.
+
+    The only state is the signed ``pulse_submitted`` cookie holding the week key.
+    """
     project = project_for_token(token)
     week = current_week_key()
+    if _already_submitted(request, token, week):
+        return render(
+            request, 'pulse/respond_already.html', {'project': project, 'next_monday': _next_monday_text()}
+        )
     if request.method == 'POST':
         form = SubmissionForm(project, week, request.POST)
         if form.is_valid():
             form.save()
-            return redirect('respond_thanks', token=token)
+            response = redirect('respond_thanks', token=token)
+            response.set_signed_cookie(
+                SUBMITTED_COOKIE,
+                week,
+                salt=_submitted_salt(token),
+                max_age=SUBMITTED_COOKIE_MAX_AGE,
+                path=f'/p/{token}/',
+                secure=request.is_secure(),
+                httponly=True,
+                samesite='Lax',
+            )
+            return response
     else:
         form = SubmissionForm(project, week)
 

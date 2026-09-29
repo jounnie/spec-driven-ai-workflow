@@ -221,9 +221,10 @@ def test_thanks_page(client, project):
     assert Submission.objects.count() == 0
 
 
-def test_resubmitting_is_accepted(client, project):
-    client.post(url(project), valid())
-    client.post(url(project), valid())
+def test_resubmitting_from_a_fresh_browser_is_accepted(project):
+    # Without the pulse_submitted cookie (#12) a second submission is saved.
+    Client().post(url(project), valid())
+    Client().post(url(project), valid())
 
     assert Submission.objects.count() == 2
 
@@ -275,7 +276,7 @@ def test_no_session_and_only_csrf_cookie(client, project):
     post = client.post(url(project), valid())
 
     assert set(get.cookies) <= {'csrftoken'}
-    assert set(post.cookies) <= {'csrftoken'}
+    assert set(post.cookies) <= {'csrftoken', 'pulse_submitted'}
     assert Session.objects.count() == 0
 
 
