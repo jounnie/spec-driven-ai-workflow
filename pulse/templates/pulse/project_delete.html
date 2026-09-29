@@ -1,0 +1,16 @@
+{% extends "pulse/base.html" %}
+
+{% block title %}Delete project · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Delete project</h1>
+<form class="confirm" method="post" action="{% url 'project_delete' project.pk %}">
+  {% csrf_token %}
+  <p class="confirm__consequence">This permanently deletes {{ project.name }} and all {{ response_count }} response{{ response_count|pluralize }}. This cannot be undone.</p>
+  {% include "pulse/_field.html" with field=form.confirm_name type="text" autocomplete="off" keep_value=True %}
+  <div class="form-actions">
+    <button class="button button--danger" type="submit">Delete project</button>
+    <a href="{% url 'project_trend' project.pk %}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

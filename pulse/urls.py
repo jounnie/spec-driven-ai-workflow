@@ -16,6 +16,7 @@ urlpatterns = [
     path('invite/<str:token>/', views.invite, name='invite'),
     path('projects/', views.projects, name='projects'),
     path('projects/<int:pk>/', views.project_trend, name='project_trend'),
+    path('projects/<int:pk>/delete/', views.project_delete, name='project_delete'),
     path('p/<str:token>/', views.respond, name='respond'),
     path('p/<str:token>/thanks/', views.respond_thanks, name='respond_thanks'),
     path('health/', views.health, name='health'),

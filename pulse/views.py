@@ -4,6 +4,7 @@ from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from functools import wraps
 
+from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
@@ -33,6 +34,7 @@ from .aggregates import DIMENSIONS, weekly_aggregates
 from .conf import anonymity_limited, current_week_key, rating_scale
 from .forms import RATING_FIELDS, ProjectForm, RegistrationForm, SubmissionForm
 from .models import Invitation, Project, Submission
+from .services import delete_project
 
 
 def health(request):
@@ -471,3 +473,45 @@ def project_trend(request, pk):
         },
     }
     return render(request, 'pulse/trend.html', context)
+
+
+class ConfirmNameForm(forms.Form):
+    """The "type the project name to confirm" field; surrounding spaces are ignored."""
+
+    confirm_name = forms.CharField(
+        label='Type the project name to confirm',
+        max_length=1000,
+        error_messages={'required': 'Type the project name to confirm.'},
+    )
+
+    def __init__(self, project, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.project = project
+
+    def clean_confirm_name(self):
+        value = self.cleaned_data['confirm_name']
+        if value != self.project.name:
+            raise forms.ValidationError('The name does not match. Type the project name exactly.')
+        return value
+
+
+@require_http_methods(['GET', 'HEAD', 'POST'])
+@login_required
+def project_delete(request, pk):
+    """Confirmation page, then delete the owner's project with a full purge (#15)."""
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    if request.method == 'POST':
+        form = ConfirmNameForm(project, request.POST)
+        if form.is_valid():
+            name = project.name
+            delete_project(project)
+            messages.success(request, f'Project {name} deleted.')
+            return redirect('projects')
+    else:
+        form = ConfirmNameForm(project)
+    context = {
+        'project': project,
+        'form': form,
+        'response_count': project.submissions.count(),
+    }
+    return render(request, 'pulse/project_delete.html', context)
