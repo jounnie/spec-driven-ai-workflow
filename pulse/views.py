@@ -19,7 +19,7 @@ from django.contrib.auth.views import (
 )
 from django.core.exceptions import PermissionDenied
 from django.core.signing import BadSignature
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -341,22 +341,46 @@ def _next_monday_text():
     return format_date(today + timedelta(days=7 - today.weekday()), 'j F Y')
 
 
+def _respondent_not_found(request):
+    """The standard 404 page, without a ``csrftoken`` cookie.
+
+    ``base.html`` asks for a CSRF token, which would make the middleware set
+    the cookie; a respondent whose project is gone keeps the browser's own.
+    """
+    response = render(request, '404.html', status=404)
+    request.META['CSRF_COOKIE_NEEDS_UPDATE'] = False
+    return response
+
+
 @require_http_methods(['GET', 'HEAD', 'POST'])
 def respond(request, token):
     """The public rating form behind the share link; no account or session.
 
     The only state is the signed ``pulse_submitted`` cookie holding the week key.
     """
-    project = project_for_token(token)
+    try:
+        project = project_for_token(token)
+    except Http404:
+        return _respondent_not_found(request)
     week = current_week_key()
     if _already_submitted(request, token, week):
         return render(
             request, 'pulse/respond_already.html', {'project': project, 'next_monday': _next_monday_text()}
         )
     if request.method == 'POST':
-        form = SubmissionForm(project, week, request.POST)
-        if form.is_valid():
-            form.save()
+        try:
+            # Write-locked transaction (transaction_mode IMMEDIATE): deleting the
+            # project and saving a submission cannot interleave. Check again that
+            # the project exists, as it may have been deleted since the lookup.
+            with transaction.atomic():
+                project = Project.objects.get(pk=project.pk)
+                form = SubmissionForm(project, week, request.POST)
+                valid = form.is_valid()
+                if valid:
+                    form.save()
+        except (Project.DoesNotExist, IntegrityError):
+            return _respondent_not_found(request)
+        if valid:
             response = redirect('respond_thanks', token=token)
             response.set_signed_cookie(
                 SUBMITTED_COOKIE,
