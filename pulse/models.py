@@ -1,3 +1,6 @@
+import math
+import numbers
+import re
 import secrets
 
 from django.conf import settings
@@ -34,26 +37,46 @@ def validate_rating(value):
 
 
 validate_week_key = RegexValidator(
-    regex=r'\A\d{4}-W(0[1-9]|[1-4]\d|5[0-3])\Z',
+    regex=r'\A[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])\Z',
     message='Enter a week in the form YYYY-Www, e.g. 2026-W40.',
     code='invalid_week_key',
 )
 
 
 class RatingField(models.IntegerField):
-    """An integer field that rejects non-integral values such as 2.5 or True.
+    """An integer field that rejects anything that is not a whole number.
 
-    IntegerField.to_python() would silently truncate 2.5 to 2.
+    IntegerField.to_python() would silently truncate 2.5 or Decimal('2.5')
+    to 2, accept True as 1, and accept strings such as '1_0' or non-ASCII
+    digits. Only ints, integral floats/Decimals and ASCII digit strings pass.
     """
 
+    _INTEGER_STRING = re.compile(r'\s*[+-]?[0-9]+\s*', re.ASCII)
+
     def to_python(self, value):
-        if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
+        if value is None or value == '':
+            return super().to_python(value)
+        if not self._is_integral(value):
             raise exceptions.ValidationError(
                 self.error_messages['invalid'],
                 code='invalid',
                 params={'value': value},
             )
         return super().to_python(value)
+
+    def _is_integral(self, value):
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, int):
+            return True
+        if isinstance(value, str):
+            return self._INTEGER_STRING.fullmatch(value) is not None
+        if isinstance(value, numbers.Number):
+            try:
+                return math.isfinite(value) and value == int(value)
+            except (TypeError, ValueError, OverflowError):
+                return False
+        return False
 
 
 class Project(models.Model):

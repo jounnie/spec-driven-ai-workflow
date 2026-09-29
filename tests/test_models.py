@@ -3,6 +3,8 @@ import string
 import subprocess
 import sys
 from datetime import UTC, datetime
+from decimal import Decimal
+from fractions import Fraction
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -239,6 +241,28 @@ def test_submission_non_integer_rating_fails(project, value):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize('value', [
+    Decimal('2.5'), Decimal('NaN'), Decimal('Infinity'), Fraction(5, 2), float('nan'), float('inf'),
+    False, '2.0', '1_0', '\uff13', '\u0663', ' ', 3j,
+])
+@pytest.mark.parametrize('field', RATINGS)
+def test_submission_non_integral_numeric_rating_fails_without_truncation(project, field, value):
+    errors = errors_of(make_submission(project, **{field: value}))
+
+    assert set(errors) == {field}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('value', [3, Decimal('3'), Decimal('3.0'), 3.0, '3', ' 3 '])
+def test_submission_integral_rating_passes_full_clean(project, value):
+    submission = make_submission(project, workload=value)
+
+    submission.full_clean()
+
+    assert submission.workload == 3
+
+
+@pytest.mark.django_db
 def test_submission_with_helper_week_key_is_saved(project):
     key = conf.week_key(datetime(2026, 9, 29, 12, 0, tzinfo=UTC))
     submission = make_submission(project, week_key=key)
@@ -250,7 +274,11 @@ def test_submission_with_helper_week_key_is_saved(project):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('week_key', ['', '2026-40', '2026-W5', 'W40-2026', '2026-W00', '2026-W54', '2026-w40'])
+@pytest.mark.parametrize('week_key', [
+    '', '2026-40', '2026-W5', 'W40-2026', '2026-W00', '2026-W54', '2026-w40',
+    '\uff12\uff10\uff12\uff16-W40', '\u0662\u0660\u0662\u0666-W40', '2026-W\u0664\u0660', '2026-W\uff14\uff10',
+    '2026-W40\n', ' 2026-W40', '26-W40', '12026-W40', '2026W40',
+])
 def test_submission_malformed_week_key_fails(project, week_key):
     errors = errors_of(make_submission(project, week_key=week_key))
 

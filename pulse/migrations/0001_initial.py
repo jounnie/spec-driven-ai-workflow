@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
             name='Submission',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('week_key', models.CharField(max_length=8, validators=[django.core.validators.RegexValidator(code='invalid_week_key', message='Enter a week in the form YYYY-Www, e.g. 2026-W40.', regex='\\A\\d{4}-W(0[1-9]|[1-4]\\d|5[0-3])\\Z')])),
+                ('week_key', models.CharField(max_length=8, validators=[django.core.validators.RegexValidator(code='invalid_week_key', message='Enter a week in the form YYYY-Www, e.g. 2026-W40.', regex='\\A[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])\\Z')])),
                 ('workload', pulse.models.RatingField(validators=[pulse.models.validate_rating], verbose_name='My workload is manageable')),
                 ('clarity', pulse.models.RatingField(validators=[pulse.models.validate_rating], verbose_name='Our goals and priorities are clear')),
                 ('collaboration', pulse.models.RatingField(validators=[pulse.models.validate_rating], verbose_name='We work well together')),
