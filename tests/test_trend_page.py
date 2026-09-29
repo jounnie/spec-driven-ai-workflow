@@ -70,7 +70,7 @@ def table_rows(html):
     body = re.search(r'<tbody>(.*?)</tbody>', html, re.S).group(1)
     rows = []
     for row in re.findall(r'<tr>(.*?)</tr>', body, re.S):
-        header = re.search(r'<th scope="row">(.*?)</th>', row).group(1)
+        header = re.search(r'<th scope="row"[^>]*>(.*?)</th>', row).group(1)
         cells = re.findall(r'<td[^>]*>(.*?)</td>', row, re.S)
         rows.append((header, cells))
     return rows
