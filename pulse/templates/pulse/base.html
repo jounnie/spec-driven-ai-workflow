@@ -1,0 +1,41 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false}'>
+  {# Pages set the title as: {% block title %}Page name · {{ block.super }}{% endblock %} #}
+  <title>{% block title %}Pulse Check{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'pulse/css/site.css' %}">
+  <script src="{% static 'pulse/vendor/htmx.min.js' %}" defer></script>
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-header__brand" href="/">Pulse Check</a>
+      <nav class="site-nav" aria-label="Main">
+        <ul class="site-nav__list"></ul>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+      {% if message.level_tag == 'error' %}
+      <div class="message message--error" role="alert"><strong class="message__prefix">Error:</strong> {{ message }}</div>
+      {% elif message.level_tag == 'success' %}
+      <div class="message message--success" role="status"><strong class="message__prefix">Success:</strong> {{ message }}</div>
+      {% elif message.level_tag == 'warning' %}
+      <div class="message message--warning" role="status"><strong class="message__prefix">Warning:</strong> {{ message }}</div>
+      {% else %}
+      <div class="message message--info" role="status"><strong class="message__prefix">Info:</strong> {{ message }}</div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

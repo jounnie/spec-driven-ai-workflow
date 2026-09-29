@@ -7,3 +7,4 @@ db.sqlite3
 .claude/settings.local.json
 db.sqlite3-wal
 db.sqlite3-shm
+staticfiles/
