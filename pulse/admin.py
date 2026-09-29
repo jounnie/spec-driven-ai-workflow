@@ -10,6 +10,9 @@ from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.contrib.admin.utils import model_ngettext
 from django.contrib.auth import get_user_model
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.forms import UserChangeForm
+from django.shortcuts import redirect
 from django.db.models import Q
 from django.template import engines
 from django.template.response import TemplateResponse
@@ -112,6 +115,57 @@ class ProjectAdmin(admin.ModelAdmin):
     def delete_queryset(self, request, queryset):
         for project in list(queryset):
             services.delete_project(project)
+
+
+LAST_SUPERUSER_MESSAGE = 'The last active superuser cannot be deleted or deactivated.'
+
+
+def removes_last_superuser(users):
+    """True if taking ``users`` out of service leaves no active superuser.
+
+    ``users`` is a queryset or list of the accounts being deleted or deactivated.
+    """
+    pks = [user.pk for user in users if user.is_superuser and user.is_active]
+    if not pks:
+        return False
+    return not get_user_model().objects.filter(is_superuser=True, is_active=True).exclude(pk__in=pks).exists()
+
+
+class LeadChangeForm(UserChangeForm):
+    def clean(self):
+        cleaned = super().clean()
+        if self.instance.pk and 'is_active' in self.changed_data and not cleaned.get('is_active', True):
+            if removes_last_superuser([self.instance]):
+                raise forms.ValidationError(LAST_SUPERUSER_MESSAGE)
+        return cleaned
+
+
+@admin.action(description='Delete selected users', permissions=['delete'])
+def delete_selected_users(modeladmin, request, queryset):
+    """Stock bulk delete (which shows protected projects), minus the last superuser."""
+    if removes_last_superuser(list(queryset)):
+        modeladmin.message_user(request, LAST_SUPERUSER_MESSAGE, messages.ERROR)
+        return None
+    return admin.actions.delete_selected(modeladmin, request, queryset)
+
+
+delete_selected_users.__name__ = 'delete_selected'
+
+
+class LeadAdmin(UserAdmin):
+    form = LeadChangeForm
+    actions = [delete_selected_users]
+
+    def delete_view(self, request, object_id, extra_context=None):
+        obj = self.get_object(request, object_id)
+        if obj is not None and removes_last_superuser([obj]):
+            self.message_user(request, LAST_SUPERUSER_MESSAGE, messages.ERROR)
+            return redirect('admin:auth_user_change', obj.pk)
+        return super().delete_view(request, object_id, extra_context)
+
+
+admin.site.unregister(get_user_model())
+admin.site.register(get_user_model(), LeadAdmin)
 
 
 @admin.register(Invitation)
