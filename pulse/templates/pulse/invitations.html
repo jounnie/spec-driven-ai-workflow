@@ -1,0 +1,86 @@
+{% extends "pulse/base.html" %}
+{% load static %}
+
+{% block title %}Invitations · {{ block.super }}{% endblock %}
+
+{% block content %}
+<h1>Invitations</h1>
+<p>An invitation link can be used once and expires after 7 days.</p>
+<form class="inline-form" method="post" action="{% url 'invitation_create' %}">
+  {% csrf_token %}
+  <button class="button button--primary" type="submit">Create invitation</button>
+</form>
+
+<h2>Open invitations</h2>
+{% if open_invitations %}
+<div class="table-scroll" tabindex="0" role="region" aria-labelledby="open-caption">
+  <table class="data-table">
+    <caption id="open-caption" class="visually-hidden">Open invitations</caption>
+    <thead>
+      <tr>
+        <th scope="col">Link</th>
+        <th scope="col">Created</th>
+        <th scope="col">Expires</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in open_invitations %}
+      <tr>
+        <th scope="row">
+          <div class="copy-link">
+            <code class="copy-link__url" id="invitation-link-{{ item.invitation.pk }}">{{ item.link }}</code>
+            <button class="button button--secondary" type="button" data-copy-target="invitation-link-{{ item.invitation.pk }}">Copy link</button>
+            <span class="copy-link__feedback" aria-live="polite"></span>
+          </div>
+        </th>
+        <td>{{ item.invitation.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ item.invitation.expires_at|date:"Y-m-d H:i" }}</td>
+        <td>
+          <form class="inline-form" method="post" action="{% url 'invitation_revoke' item.invitation.pk %}">
+            {% csrf_token %}
+            <button class="button button--danger" type="submit">Revoke</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No open invitations.</p>
+</div>
+{% endif %}
+
+<h2>Used invitations</h2>
+{% if used %}
+<div class="table-scroll" tabindex="0" role="region" aria-labelledby="used-caption">
+  <table class="data-table">
+    <caption id="used-caption" class="visually-hidden">Used invitations</caption>
+    <thead>
+      <tr>
+        <th scope="col">Used by</th>
+        <th scope="col">Used at</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for invitation in used %}
+      <tr>
+        <th scope="row">{% if invitation.used_by %}{{ invitation.used_by.get_username }}{% else %}deleted account{% endif %}</th>
+        <td>{{ invitation.used_at|date:"Y-m-d H:i" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No invitation has been used yet.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'pulse/js/copy-link.js' %}" defer></script>
+{% endblock %}
